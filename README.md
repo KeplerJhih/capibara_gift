@@ -41,9 +41,9 @@
 
 ```env
 # API URLs
-CAPTCHA_BASE_URL=https://mail.advrpg.com/api/v1/captcha
-CAPTCHA_GENERATE_URL=https://mail.advrpg.com/api/v1/captcha/generate
-CLAIM_API_URL=https://mail.advrpg.com/api/v1/giftcode/claim
+CAPTCHA_BASE_URL=https://prod-mail.habbyservice.com/Capybara/api/v1/captcha
+CAPTCHA_GENERATE_URL=https://prod-mail.habbyservice.com/Capybara/api/v1/captcha/generate
+CLAIM_API_URL=https://prod-mail.habbyservice.com/Capybara/api/v1/giftcode/claim
 
 # 預先定義要發放的user
 DEFAULT_USER_IDS=user1,user2,user3
