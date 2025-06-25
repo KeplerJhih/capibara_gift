@@ -334,11 +334,11 @@
             try {
                 const response = await fetch('/api/config');
                 const config = await response.json();
-                CAPTCHA_API_URL = config.captcha_api_url;
+                CAPTCHA_API_URL = '/api/captcha/generate';  // 使用本地代理端點
                 CLAIM_API_URL = config.claim_api_url;
                 DEFAULT_USER_IDS = config.default_user_ids;
                 
-                // 只有當輸入框為空時，才自動填入預設值
+                // 如果有預設用戶ID，自動填入輸入框
                 const gameIdInput = document.getElementById('gameId');
                 if (DEFAULT_USER_IDS && DEFAULT_USER_IDS.length > 0 && !gameIdInput.value) {
                     gameIdInput.value = DEFAULT_USER_IDS.join(',');
@@ -367,8 +367,8 @@
             resultContainer.appendChild(itemDiv);
 
             try {
-                // 1. 獲取驗證碼ID
-                const captchaResponse = await fetch(CAPTCHA_API_URL, {
+                // 1. 獲取驗證碼ID - 使用本地代理
+                const captchaResponse = await fetch('/api/captcha/generate', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -427,10 +427,10 @@
                 const claimData = await claimResponse.json();
                 
                 // 檢查是否需要重試
-                if (claimData.code === 20002 && retryCount < maxRetries) {  // 驗證碼錯誤且未超過重試次數
+                if (claimData.code === 20002 && retryCount < maxRetries) {
                     console.log(`驗證碼錯誤，正在重試 (${retryCount + 1}/${maxRetries})...`);
-                    itemDiv.remove();  // 移除當前的處理中狀態
-                    await new Promise(resolve => setTimeout(resolve, 500));  // 等待500ms
+                    itemDiv.remove();
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     return processSingleClaim(gameId, serialNumber, resultContainer, retryCount + 1);
                 }
                 
@@ -471,7 +471,7 @@
 
             } catch (error) {
                 // 如果是其他錯誤且未超過重試次數，也進行重試
-                if (retryCount < maxRetries) {
+                if (retryCount < maxRetries && !error.message.includes('Failed to fetch')) {
                     console.log(`請求失敗，正在重試 (${retryCount + 1}/${maxRetries})...`);
                     itemDiv.remove();
                     await new Promise(resolve => setTimeout(resolve, 500));
@@ -480,12 +480,16 @@
 
                 itemDiv.className = 'result-item error';
                 itemDiv.innerHTML = `
-                    <div class="status-text">禮品碼: ${serialNumber}</div>
+                    <div class="status-text">
+                        ${serialNumber}
+                        <span style="float:right;color:#f44336">失敗</span>
+                    </div>
                     <div class="detail">
                         <p>錯誤: ${error.message}</p>
                         <p>重試次數: ${retryCount}/${maxRetries}</p>
                     </div>
                 `;
+                
                 failedItems.push({ gameId, serialNumber, reason: error.message });
             }
         }

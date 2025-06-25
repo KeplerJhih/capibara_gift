@@ -40,7 +40,8 @@ app.include_router(config.router, prefix="/api")
 @app.on_event("startup")
 async def startup_event():
     logger.info("應用程式啟動")
-    logger.info(f"CAPTCHA API URL: {os.getenv('CAPTCHA_API_URL')}")
+    logger.info(f"CAPTCHA BASE URL: {os.getenv('CAPTCHA_BASE_URL')}")
+    logger.info(f"CAPTCHA GENERATE URL: {os.getenv('CAPTCHA_GENERATE_URL')}")
     logger.info(f"CLAIM API URL: {os.getenv('CLAIM_API_URL')}")
 
 @app.on_event("shutdown")

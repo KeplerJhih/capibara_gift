@@ -8,6 +8,103 @@ import os
 router = APIRouter()
 captcha_service = CaptchaService()
 
+@router.get("/test")
+async def test_apis():
+    """測試外部 API 的可用性"""
+    results = {}
+    
+    # 測試驗證碼生成 API
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{os.getenv('CAPTCHA_BASE_URL')}/generate",
+                headers={'Content-Type': 'application/json'}
+            )
+            results['captcha_generate'] = {
+                'status': response.status_code,
+                'accessible': response.status_code == 200,
+                'response': response.text[:200] if response.status_code != 200 else 'OK'
+            }
+    except Exception as e:
+        results['captcha_generate'] = {
+            'status': 'error',
+            'accessible': False,
+            'response': str(e)
+        }
+    
+    # 測試兌換 API
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                os.getenv('CLAIM_API_URL'),
+                headers={'Content-Type': 'application/json'},
+                json={"test": "connection"}
+            )
+            results['claim_api'] = {
+                'status': response.status_code,
+                'accessible': True,  # 任何響應都表示可訪問
+                'response': response.text[:200]
+            }
+    except Exception as e:
+        results['claim_api'] = {
+            'status': 'error',
+            'accessible': False,
+            'response': str(e)
+        }
+    
+    return {
+        'env_vars': {
+            'CAPTCHA_BASE_URL': os.getenv('CAPTCHA_BASE_URL'),
+            'CLAIM_API_URL': os.getenv('CLAIM_API_URL')
+        },
+        'test_results': results
+    }
+
+@router.post("/captcha/generate")
+async def generate_captcha():
+    """代理驗證碼生成請求"""
+    try:
+        captcha_url = f"{os.getenv('CAPTCHA_BASE_URL')}/generate"
+        logger.info(f"正在請求驗證碼: {captcha_url}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                captcha_url,
+                headers={'Content-Type': 'application/json'}
+            )
+            
+            logger.info(f"驗證碼 API 響應: status={response.status_code}")
+            
+            if response.status_code != 200:
+                logger.error(f"驗證碼 API 錯誤: {response.text}")
+                raise HTTPException(status_code=400, detail=f"無法生成驗證碼: {response.text}")
+            
+            result = response.json()
+            logger.info(f"驗證碼生成成功: {result}")
+            return result
+            
+    except httpx.TimeoutException:
+        logger.error("驗證碼 API 請求超時")
+        raise HTTPException(status_code=500, detail="請求超時")
+    except Exception as e:
+        logger.error(f"生成驗證碼失敗: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/captcha/image/{captcha_id}")
+async def get_captcha_image(captcha_id: str):
+    """代理驗證碼圖片請求"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{os.getenv('CAPTCHA_BASE_URL')}/image/{captcha_id}")
+            if response.status_code != 200:
+                raise HTTPException(status_code=400, detail="無法獲取驗證碼圖片")
+            
+            from fastapi.responses import Response
+            return Response(content=response.content, media_type="image/png")
+    except Exception as e:
+        logger.error(f"獲取驗證碼圖片失敗: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/captcha", status_code=200)
 async def recognize_captcha(
     game_id: str = Form(...),
