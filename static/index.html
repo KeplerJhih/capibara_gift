@@ -335,7 +335,7 @@
                 const response = await fetch('/api/config');
                 const config = await response.json();
                 CAPTCHA_API_URL = '/api/captcha/generate';  // 使用本地代理端點
-                CLAIM_API_URL = config.claim_api_url;
+                CLAIM_API_URL = '/api/giftcode/claim';  // 使用本地代理端點
                 DEFAULT_USER_IDS = config.default_user_ids;
                 
                 // 如果有預設用戶ID，自動填入輸入框

@@ -161,4 +161,52 @@ async def recognize_captcha(
         raise he
     except Exception as e:
         logger.error(f"處理請求失敗: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/giftcode/claim")
+async def claim_giftcode(request_data: dict):
+    """代理兌換請求"""
+    try:
+        claim_url = os.getenv('CLAIM_API_URL')
+        logger.info(f"正在請求兌換: {claim_url}")
+        logger.info(f"請求數據: {request_data}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                claim_url,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                json=request_data
+            )
+            
+            logger.info(f"兌換 API 響應: status={response.status_code}")
+            
+            # 直接返回響應內容，不管狀態碼
+            try:
+                result = response.json()
+                logger.info(f"兌換 API 響應內容: {result}")
+                return result
+            except Exception as e:
+                logger.error(f"解析響應 JSON 失敗: {str(e)}")
+                return {
+                    "code": -1,
+                    "message": f"響應解析失敗: {response.text}",
+                    "data": None
+                }
+            
+    except httpx.TimeoutException:
+        logger.error("兌換 API 請求超時")
+        return {
+            "code": -1,
+            "message": "請求超時",
+            "data": None
+        }
+    except Exception as e:
+        logger.error(f"兌換請求失敗: {str(e)}")
+        return {
+            "code": -1,
+            "message": str(e),
+            "data": None
+        } 
